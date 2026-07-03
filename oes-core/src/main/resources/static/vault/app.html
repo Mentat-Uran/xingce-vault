@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>xingce-vault 本地公考题库</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --line: #d9e0ea;
+      --text: #172033;
+      --muted: #667085;
+      --primary: #2563eb;
+      --danger: #b42318;
+      --ok: #067647;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 22px;
+      background: #111827;
+      color: #fff;
+      border-bottom: 1px solid #0b1220;
+    }
+    header h1 { margin: 0; font-size: 18px; font-weight: 650; }
+    .summary { display: flex; gap: 12px; flex-wrap: wrap; color: #d1d5db; }
+    .summary b { color: #fff; font-weight: 650; }
+    nav {
+      display: flex;
+      gap: 6px;
+      padding: 10px 22px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      overflow-x: auto;
+    }
+    nav button, button, input, select, textarea {
+      font: inherit;
+    }
+    nav button {
+      border: 1px solid transparent;
+      background: transparent;
+      padding: 8px 10px;
+      cursor: pointer;
+      color: #344054;
+    }
+    nav button.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 650;
+    }
+    main { max-width: 1320px; margin: 0 auto; padding: 18px 22px 40px; }
+    section { display: none; }
+    section.active { display: block; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 14px;
+      min-width: 0;
+    }
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-5 { grid-column: span 5; }
+    .span-6 { grid-column: span 6; }
+    .span-7 { grid-column: span 7; }
+    .span-8 { grid-column: span 8; }
+    .span-9 { grid-column: span 9; }
+    .span-12 { grid-column: span 12; }
+    h2, h3 { margin: 0 0 10px; }
+    h2 { font-size: 18px; }
+    h3 { font-size: 15px; }
+    label { display: block; margin: 8px 0 4px; color: #344054; font-weight: 550; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 8px 9px;
+      background: #fff;
+      color: var(--text);
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .row > * { flex: 1; min-width: 120px; }
+    button {
+      border: 1px solid #c7d2fe;
+      border-radius: 4px;
+      background: #fff;
+      color: #1d4ed8;
+      padding: 8px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    button.danger { border-color: #fecaca; color: var(--danger); }
+    button.ghost { border-color: var(--line); color: #344054; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; vertical-align: top; }
+    th { color: #475467; font-size: 12px; background: #f8fafc; }
+    .muted { color: var(--muted); }
+    .status { min-height: 20px; margin: 8px 0; color: var(--muted); }
+    .error { color: var(--danger); }
+    .ok { color: var(--ok); }
+    .toolbar { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin: 8px 0 12px; flex-wrap: wrap; }
+    .question-stem { white-space: pre-wrap; font-size: 16px; }
+    .passage { white-space: pre-wrap; background: #f8fafc; border-left: 3px solid #94a3b8; padding: 10px; margin-bottom: 10px; }
+    .options { display: grid; gap: 8px; margin: 12px 0; }
+    .option {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 10px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .option input { width: auto; margin-top: 4px; }
+    .exam-layout { display: grid; grid-template-columns: 220px 1fr; gap: 14px; }
+    .nav-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .nav-grid button { padding: 7px 0; border-color: var(--line); color: #344054; }
+    .nav-grid button.current { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .nav-grid button.done { border-color: #bbf7d0; color: #067647; }
+    .timer { font-size: 24px; font-weight: 700; letter-spacing: 0; }
+    .pill { display: inline-block; padding: 2px 7px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: 12px; }
+    .metric { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+    .metric div { background: #f8fafc; border: 1px solid var(--line); padding: 10px; border-radius: 4px; }
+    .metric b { display: block; font-size: 20px; }
+    @media (max-width: 920px) {
+      .span-3, .span-4, .span-5, .span-6, .span-7, .span-8, .span-9 { grid-column: span 12; }
+      .exam-layout { grid-template-columns: 1fr; }
+      .metric { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>xingce-vault 本地公考题库</h1>
+  <div id="summary" class="summary"></div>
+</header>
+<nav id="tabs">
+  <button data-tab="import" class="active">PDF / 文本导入</button>
+  <button data-tab="bank">题库管理</button>
+  <button data-tab="exam">模拟考试</button>
+  <button data-tab="history">成绩统计</button>
+  <button data-tab="docs">OCR 接入说明</button>
+</nav>
+<main>
+  <section id="tab-import" class="active">
+    <div class="grid">
+      <div class="panel span-4">
+        <h2>导入入口</h2>
+        <label>文本型 PDF</label>
+        <input id="pdfFile" type="file" accept="application/pdf">
+        <div class="toolbar">
+          <button class="primary" onclick="uploadPdf()">上传并解析</button>
+        </div>
+        <label>JSON / Markdown</label>
+        <select id="textImportType">
+          <option value="json">JSON</option>
+          <option value="markdown">Markdown</option>
+        </select>
+        <textarea id="textImportContent" placeholder="粘贴标准 JSON 或 Markdown 题目"></textarea>
+        <button onclick="importText()">解析文本导入</button>
+        <div id="importStatus" class="status"></div>
+      </div>
+      <div class="panel span-8">
+        <div class="toolbar">
+          <h2>导入任务</h2>
+          <button class="ghost" onclick="loadJobs()">刷新</button>
+        </div>
+        <div id="jobs"></div>
+      </div>
+      <div class="panel span-7">
+        <div class="toolbar">
+          <h2>候选题校对</h2>
+          <div>
+            <button onclick="confirmSelected()">确认选中入库</button>
+            <button onclick="confirmAllPending()">确认当前任务待入库</button>
+          </div>
+        </div>
+        <div id="candidates" class="muted">选择一个导入任务查看候选题。</div>
+      </div>
+      <div class="panel span-5">
+        <h2>编辑候选题</h2>
+        <form id="candidateForm" onsubmit="saveCandidate(event)">
+          <input id="candidateId" type="hidden">
+          <div class="row">
+            <div><label>试卷名</label><input name="paperTitle"></div>
+            <div><label>题号</label><input name="number" type="number"></div>
+          </div>
+          <div class="row">
+            <div><label>考试类型</label><input name="examType" placeholder="国考 / 省考"></div>
+            <div><label>省份</label><input name="province"></div>
+            <div><label>年份</label><input name="year" type="number"></div>
+          </div>
+          <div class="row">
+            <div><label>科目</label><input name="subject" value="行测"></div>
+            <div><label>模块</label><input name="module" placeholder="资料分析"></div>
+            <div><label>题型</label><input name="questionType"></div>
+          </div>
+          <label>材料</label><textarea name="passageText"></textarea>
+          <label>题干</label><textarea name="stem" required></textarea>
+          <div class="row">
+            <div><label>A</label><input name="optionA"></div>
+            <div><label>B</label><input name="optionB"></div>
+          </div>
+          <div class="row">
+            <div><label>C</label><input name="optionC"></div>
+            <div><label>D</label><input name="optionD"></div>
+          </div>
+          <div class="row">
+            <div><label>答案</label><input name="answer" maxlength="1"></div>
+            <div><label>分值</label><input name="score" type="number" step="0.1" value="1"></div>
+          </div>
+          <label>解析</label><textarea name="explanation"></textarea>
+          <label>标签，逗号分隔</label><input name="tags">
+          <div class="toolbar">
+            <button class="primary" type="submit">保存候选题</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-bank">
+    <div class="grid">
+      <div class="panel span-12">
+        <h2>题库筛选</h2>
+        <div class="row">
+          <input id="filterKeyword" placeholder="搜索题干 / 解析">
+          <select id="filterExamType"><option value="">考试类型</option></select>
+          <select id="filterYear"><option value="">年份</option></select>
+          <select id="filterProvince"><option value="">省份</option></select>
+          <select id="filterSubject"><option value="">科目</option></select>
+          <select id="filterModule"><option value="">模块</option></select>
+          <select id="filterQuestionType"><option value="">题型</option></select>
+          <button onclick="loadQuestions()">查询</button>
+        </div>
+      </div>
+      <div class="panel span-7">
+        <div class="toolbar">
+          <h2>题目列表</h2>
+          <button onclick="newQuestion()">手动新增</button>
+        </div>
+        <div id="questionList"></div>
+      </div>
+      <div class="panel span-5">
+        <h2>题目详情 / 编辑</h2>
+        <form id="questionForm" onsubmit="saveQuestion(event)">
+          <input name="id" type="hidden">
+          <div class="row">
+            <div><label>试卷名</label><input name="paperTitle"></div>
+            <div><label>题号</label><input name="number" type="number"></div>
+          </div>
+          <div class="row">
+            <div><label>考试类型</label><input name="examType"></div>
+            <div><label>省份</label><input name="province"></div>
+            <div><label>年份</label><input name="year" type="number"></div>
+          </div>
+          <div class="row">
+            <div><label>科目</label><input name="subject" value="行测"></div>
+            <div><label>模块</label><input name="module"></div>
+            <div><label>题型</label><input name="questionType"></div>
+          </div>
+          <label>材料</label><textarea name="passageText"></textarea>
+          <label>题干</label><textarea name="stem" required></textarea>
+          <div class="row">
+            <div><label>A</label><input name="optionA"></div>
+            <div><label>B</label><input name="optionB"></div>
+          </div>
+          <div class="row">
+            <div><label>C</label><input name="optionC"></div>
+            <div><label>D</label><input name="optionD"></div>
+          </div>
+          <div class="row">
+            <div><label>答案</label><input name="answer" maxlength="1"></div>
+            <div><label>分值</label><input name="score" type="number" step="0.1" value="1"></div>
+          </div>
+          <label>解析</label><textarea name="explanation"></textarea>
+          <label>标签，逗号分隔</label><input name="tags">
+          <div class="toolbar">
+            <button class="primary" type="submit">保存题目</button>
+            <button class="danger" type="button" onclick="deleteQuestion()">删除题目</button>
+          </div>
+        </form>
+        <div id="questionStatus" class="status"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-exam">
+    <div id="examSetup" class="grid">
+      <div class="panel span-4">
+        <h2>创建模拟考试</h2>
+        <label>模式</label>
+        <select id="examMode">
+          <option value="smart">智能组卷</option>
+          <option value="paper">原卷考试</option>
+          <option value="practice">练习组卷</option>
+        </select>
+        <label>原卷</label>
+        <select id="examPaper"><option value="">不指定</option></select>
+        <div class="row">
+          <div><label>总题量</label><input id="examTotal" type="number" value="120"></div>
+          <div><label>总时长，分钟</label><input id="examMinutes" type="number" value="120"></div>
+        </div>
+        <div class="row">
+          <div><label>年份限制</label><input id="examYear" type="number"></div>
+          <div><label>省份限制</label><input id="examProvince"></div>
+        </div>
+        <label><input id="preferUnanswered" type="checkbox" style="width:auto"> 优先未做题</label>
+        <label><input id="preferWrong" type="checkbox" style="width:auto"> 优先错题</label>
+        <button class="primary" onclick="startSession()">开始考试</button>
+        <div id="examStatus" class="status"></div>
+      </div>
+      <div class="panel span-8">
+        <h2>默认国省考行测规则</h2>
+        <div class="row">
+          <div><label>言语理解</label><input class="module-count" data-module="言语理解" type="number" value="35"></div>
+          <div><label>判断推理</label><input class="module-count" data-module="判断推理" type="number" value="35"></div>
+          <div><label>资料分析</label><input class="module-count" data-module="资料分析" type="number" value="20"></div>
+          <div><label>数量关系</label><input class="module-count" data-module="数量关系" type="number" value="10"></div>
+          <div><label>常识判断</label><input class="module-count" data-module="常识判断" type="number" value="20"></div>
+        </div>
+        <p class="muted">如果某模块题量不足，系统会从符合筛选条件的其他题目中补足。交卷后不能继续修改答案。</p>
+      </div>
+    </div>
+    <div id="examRunner" style="display:none"></div>
+  </section>
+
+  <section id="tab-history">
+    <div class="grid">
+      <div class="panel span-5">
+        <h2>分数预测</h2>
+        <div id="prediction"></div>
+      </div>
+      <div class="panel span-7">
+        <h2>历史成绩</h2>
+        <div id="historyList"></div>
+      </div>
+      <div class="panel span-12">
+        <h2>最近成绩折线</h2>
+        <canvas id="scoreChart" width="1000" height="260"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-docs">
+    <div class="panel">
+      <h2>后续 OCR / 复杂 PDF 接入</h2>
+      <p>第一版只处理文本型 PDF，扫描版和复杂版式不直接入库。扩展时建议保持当前流程：PDF / OCR 提取文本或结构化块，生成 ImportCandidate，人工校对后再确认入库。</p>
+      <table>
+        <thead><tr><th>组件</th><th>接入位置</th><th>输出要求</th></tr></thead>
+        <tbody>
+        <tr><td>PaddleOCR</td><td><code>PdfTextExtractor</code> 增加 OCR 分支</td><td>按页输出文本块、坐标、置信度，低置信字段留空</td></tr>
+        <tr><td>MinerU</td><td>新增版面解析服务，替换纯文本提取</td><td>保留段落、表格、图片引用，资料分析材料单独标注</td></tr>
+        <tr><td>PDF-Extract-Kit</td><td>新增结构化 PDF parser</td><td>输出题号、选项、答案解析候选，但仍进入校对页</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+const apiBase = '/vault/api';
+const state = { currentJobId: null, session: null, questions: [], index: 0, enteredAt: null, timer: null };
+const modules = ['言语理解', '数量关系', '判断推理', '资料分析', '常识判断', '申论', 'unknown'];
+
+function $(id) { return document.getElementById(id); }
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+async function api(path, options = {}) {
+  const response = await fetch(apiBase + path, {
+    headers: options.body instanceof FormData ? {} : {'Content-Type': 'application/json'},
+    ...options
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || '请求失败');
+  return data;
+}
+function setStatus(id, message, ok = true) {
+  $(id).innerHTML = message ? `<span class="${ok ? 'ok' : 'error'}">${esc(message)}</span>` : '';
+}
+function formData(form) {
+  const data = Object.fromEntries(new FormData(form).entries());
+  for (const key of ['number', 'year']) data[key] = data[key] ? Number(data[key]) : null;
+  data.score = data.score ? Number(data.score) : 1;
+  data.options = {A: data.optionA || '', B: data.optionB || '', C: data.optionC || '', D: data.optionD || ''};
+  data.tags = (data.tags || '').split(/[,，、]/).map(s => s.trim()).filter(Boolean);
+  delete data.optionA; delete data.optionB; delete data.optionC; delete data.optionD;
+  return data;
+}
+function fillForm(form, data = {}) {
+  form.reset();
+  for (const [key, value] of Object.entries(data)) {
+    const input = form.elements[key];
+    if (input) input.value = value ?? '';
+  }
+  const options = data.options || {};
+  for (const key of ['A', 'B', 'C', 'D']) {
+    if (form.elements['option' + key]) form.elements['option' + key].value = options[key] || '';
+  }
+  if (form.elements.tags) form.elements.tags.value = Array.isArray(data.tags) ? data.tags.join(', ') : '';
+}
+
+document.querySelectorAll('#tabs button').forEach(button => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('#tabs button').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('main section').forEach(item => item.classList.remove('active'));
+    button.classList.add('active');
+    $('tab-' + button.dataset.tab).classList.add('active');
+  });
+});
+
+async function loadSummary() {
+  const summary = await api('/summary');
+  $('summary').innerHTML = [
+    `题目 <b>${summary.questionCount}</b>`,
+    `试卷 <b>${summary.paperCount}</b>`,
+    `待校对 <b>${summary.pendingCandidateCount}</b>`,
+    `已交卷 <b>${summary.submittedSessionCount}</b>`
+  ].join('');
+}
+async function loadFilters() {
+  const rows = await api('/filters');
+  const values = {examType: [], province: [], subject: [], module: [], questionType: []};
+  rows.forEach(row => values[row.type]?.push(row.value));
+  for (const [type, list] of Object.entries(values)) {
+    const select = $('filter' + type[0].toUpperCase() + type.slice(1));
+    if (!select) continue;
+    const first = select.options[0].textContent;
+    select.innerHTML = `<option value="">${first}</option>` + list.map(value => `<option>${esc(value)}</option>`).join('');
+  }
+  const questions = await api('/questions?limit=500');
+  const years = [...new Set(questions.map(q => q.year).filter(Boolean))].sort((a,b) => b-a);
+  $('filterYear').innerHTML = '<option value="">年份</option>' + years.map(y => `<option>${y}</option>`).join('');
+}
+async function loadPapers() {
+  const papers = await api('/papers');
+  $('examPaper').innerHTML = '<option value="">不指定</option>' + papers.map(p => `<option value="${p.id}">${esc(p.title)} (${p.totalQuestions || 0})</option>`).join('');
+}
+
+async function uploadPdf() {
+  const file = $('pdfFile').files[0];
+  if (!file) return setStatus('importStatus', '请选择 PDF 文件', false);
+  const data = new FormData();
+  data.append('file', file);
+  setStatus('importStatus', '正在提取文本并切分题目...');
+  try {
+    const job = await api('/import/pdf', {method: 'POST', body: data});
+    setStatus('importStatus', `解析完成，候选题 ${job.candidates.length} 道`);
+    await loadJobs();
+    await loadCandidates(job.id);
+  } catch (e) {
+    setStatus('importStatus', e.message, false);
+  }
+}
+async function importText() {
+  try {
+    const job = await api('/import/text', {
+      method: 'POST',
+      body: JSON.stringify({sourceType: $('textImportType').value, content: $('textImportContent').value})
+    });
+    setStatus('importStatus', `解析完成，候选题 ${job.candidates.length} 道`);
+    await loadJobs();
+    await loadCandidates(job.id);
+  } catch (e) {
+    setStatus('importStatus', e.message, false);
+  }
+}
+async function loadJobs() {
+  const jobs = await api('/import/jobs');
+  $('jobs').innerHTML = jobs.length ? `<table><thead><tr><th>ID</th><th>来源</th><th>候选</th><th>已入库</th><th>操作</th></tr></thead><tbody>${
+    jobs.map(job => `<tr><td>${job.id}</td><td>${esc(job.fileName || job.sourceType)}</td><td>${job.candidateCount}</td><td>${job.confirmedCount}</td><td><button onclick="loadCandidates(${job.id})">查看</button></td></tr>`).join('')
+  }</tbody></table>` : '<p class="muted">暂无导入任务。</p>';
+}
+async function loadCandidates(jobId) {
+  state.currentJobId = jobId;
+  const rows = await api(`/import/jobs/${jobId}/candidates`);
+  $('candidates').innerHTML = rows.length ? `<table><thead><tr><th></th><th>题号</th><th>模块</th><th>题干</th><th>答案</th><th>状态</th><th>操作</th></tr></thead><tbody>${
+    rows.map(row => `<tr><td><input type="checkbox" class="candidate-check" value="${row.id}"></td><td>${row.number || ''}</td><td>${esc(row.module)}</td><td>${esc((row.stem || '').slice(0, 90))}</td><td>${esc(row.answer || '')}</td><td>${esc(row.status)}</td><td><button onclick="editCandidate(${row.id})">编辑</button></td></tr>`).join('')
+  }</tbody></table>` : '<p class="muted">没有候选题。</p>';
+}
+async function editCandidate(id) {
+  const data = await api('/import/candidates/' + id);
+  fillForm($('candidateForm'), data);
+  $('candidateId').value = data.id;
+}
+async function saveCandidate(event) {
+  event.preventDefault();
+  const id = $('candidateId').value;
+  if (!id) return;
+  await api('/import/candidates/' + id, {method: 'PUT', body: JSON.stringify(formData(event.target))});
+  await loadCandidates(state.currentJobId);
+  setStatus('importStatus', '候选题已保存');
+}
+async function confirmSelected() {
+  const ids = [...document.querySelectorAll('.candidate-check:checked')].map(input => Number(input.value));
+  if (!ids.length) return setStatus('importStatus', '请选择候选题', false);
+  const result = await api('/import/candidates/confirm', {method: 'POST', body: JSON.stringify({ids})});
+  setStatus('importStatus', `已入库 ${result.confirmedCount} 道`);
+  await refreshAll();
+  if (state.currentJobId) await loadCandidates(state.currentJobId);
+}
+async function confirmAllPending() {
+  if (!state.currentJobId) return;
+  const result = await api('/import/candidates/confirm', {method: 'POST', body: JSON.stringify({jobId: state.currentJobId})});
+  setStatus('importStatus', `已入库 ${result.confirmedCount} 道`);
+  await refreshAll();
+  await loadCandidates(state.currentJobId);
+}
+
+function queryString(params) {
+  return Object.entries(params).filter(([,v]) => v !== '' && v != null).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+}
+async function loadQuestions() {
+  const params = {
+    keyword: $('filterKeyword').value,
+    examType: $('filterExamType').value,
+    year: $('filterYear').value,
+    province: $('filterProvince').value,
+    subject: $('filterSubject').value,
+    module: $('filterModule').value,
+    questionType: $('filterQuestionType').value,
+    limit: 200
+  };
+  const rows = await api('/questions?' + queryString(params));
+  $('questionList').innerHTML = rows.length ? `<table><thead><tr><th>ID</th><th>题号</th><th>模块</th><th>题干</th><th>答案</th><th>操作</th></tr></thead><tbody>${
+    rows.map(row => `<tr><td>${row.id}</td><td>${row.number || ''}</td><td>${esc(row.module)}</td><td>${esc((row.stem || '').slice(0, 100))}</td><td>${esc(row.answer || '')}</td><td><button onclick="editQuestion(${row.id})">查看</button></td></tr>`).join('')
+  }</tbody></table>` : '<p class="muted">没有匹配题目。</p>';
+}
+function newQuestion() {
+  fillForm($('questionForm'), {subject: '行测', module: 'unknown', score: 1});
+  setStatus('questionStatus', '');
+}
+async function editQuestion(id) {
+  const data = await api('/questions/' + id);
+  fillForm($('questionForm'), data);
+}
+async function saveQuestion(event) {
+  event.preventDefault();
+  const data = formData(event.target);
+  const id = data.id;
+  delete data.id;
+  const saved = id ? await api('/questions/' + id, {method: 'PUT', body: JSON.stringify(data)}) : await api('/questions', {method: 'POST', body: JSON.stringify(data)});
+  fillForm(event.target, saved);
+  setStatus('questionStatus', '题目已保存');
+  await refreshAll();
+}
+async function deleteQuestion() {
+  const id = $('questionForm').elements.id.value;
+  if (!id || !confirm('确认删除这道题？')) return;
+  await api('/questions/' + id, {method: 'DELETE'});
+  newQuestion();
+  await refreshAll();
+}
+
+async function startSession() {
+  const moduleCounts = {};
+  document.querySelectorAll('.module-count').forEach(input => {
+    const value = Number(input.value || 0);
+    if (value > 0) moduleCounts[input.dataset.module] = value;
+  });
+  const minutes = Number($('examMinutes').value || 120);
+  const payload = {
+    mode: $('examMode').value,
+    paperId: $('examPaper').value ? Number($('examPaper').value) : null,
+    title: $('examMode').value === 'paper' ? $('examPaper').selectedOptions[0]?.textContent || '原卷考试' : '智能组卷模拟考试',
+    totalQuestions: Number($('examTotal').value || 120),
+    durationSeconds: minutes * 60,
+    year: $('examYear').value || null,
+    province: $('examProvince').value || null,
+    moduleCounts,
+    preferUnanswered: $('preferUnanswered').checked,
+    preferWrong: $('preferWrong').checked
+  };
+  try {
+    const session = await api('/sessions', {method: 'POST', body: JSON.stringify(payload)});
+    localStorage.setItem('xingce.activeSessionId', session.id);
+    await loadSession(session.id);
+  } catch (e) {
+    setStatus('examStatus', e.message, false);
+  }
+}
+async function loadSession(id) {
+  state.session = await api('/sessions/' + id);
+  state.questions = await api(`/sessions/${id}/questions`);
+  if (state.session.status !== 'ongoing') {
+    await showResult(id);
+    return;
+  }
+  $('examSetup').style.display = 'none';
+  $('examRunner').style.display = '';
+  state.index = 0;
+  state.enteredAt = Date.now();
+  renderExam();
+  startTimer();
+}
+function renderExam() {
+  const question = state.questions[state.index];
+  const options = question.options || {};
+  $('examRunner').innerHTML = `<div class="exam-layout">
+    <div class="panel">
+      <div class="timer" id="timerText">${formatTime(state.session.remainingSeconds || 0)}</div>
+      <p class="muted">${esc(state.session.title)} · ${state.questions.length} 题</p>
+      <div class="nav-grid">${state.questions.map((q, i) => `<button class="${i === state.index ? 'current' : ''} ${q.userAnswer ? 'done' : ''}" onclick="goQuestion(${i})">${i + 1}</button>`).join('')}</div>
+      <label style="margin-top:12px"><input id="markedForReview" type="checkbox" style="width:auto" ${question.markedForReview ? 'checked' : ''}> 待回看</label>
+      <button class="danger" style="width:100%;margin-top:10px" onclick="submitExam()">交卷</button>
+    </div>
+    <div class="panel">
+      <div class="toolbar">
+        <h2>第 ${state.index + 1} 题 <span class="pill">${esc(question.module || 'unknown')}</span></h2>
+        <span class="muted">已用时 ${question.timeSpentSeconds || 0} 秒</span>
+      </div>
+      ${question.passageText ? `<div class="passage">${esc(question.passageText)}</div>` : ''}
+      <div class="question-stem">${esc(question.stem)}</div>
+      <div class="options">${['A','B','C','D'].map(key => options[key] ? `<label class="option"><input type="radio" name="answer" value="${key}" ${question.userAnswer === key ? 'checked' : ''}><b>${key}</b><span>${esc(options[key])}</span></label>` : '').join('')}</div>
+      <div class="toolbar">
+        <button onclick="goQuestion(${Math.max(0, state.index - 1)})" ${state.index === 0 ? 'disabled' : ''}>上一题</button>
+        <button class="primary" onclick="goQuestion(${Math.min(state.questions.length - 1, state.index + 1)})" ${state.index === state.questions.length - 1 ? 'disabled' : ''}>下一题</button>
+      </div>
+    </div>
+  </div>`;
+}
+async function flushCurrent() {
+  if (!state.session || !state.questions.length || state.session.status !== 'ongoing') return;
+  const question = state.questions[state.index];
+  const selected = document.querySelector('input[name="answer"]:checked');
+  const marked = $('markedForReview')?.checked;
+  const delta = Math.max(0, Math.round((Date.now() - (state.enteredAt || Date.now())) / 1000));
+  await api(`/sessions/${state.session.id}/records/${question.recordId}`, {
+    method: 'POST',
+    body: JSON.stringify({userAnswer: selected?.value || question.userAnswer || null, markedForReview: marked, timeDeltaSeconds: delta})
+  });
+  question.userAnswer = selected?.value || question.userAnswer || null;
+  question.markedForReview = marked;
+  question.timeSpentSeconds = (question.timeSpentSeconds || 0) + delta;
+  state.enteredAt = Date.now();
+}
+async function goQuestion(index) {
+  if (index === state.index) return;
+  await flushCurrent();
+  state.index = index;
+  renderExam();
+}
+function startTimer() {
+  clearInterval(state.timer);
+  let remaining = state.session.remainingSeconds || 0;
+  state.timer = setInterval(async () => {
+    remaining -= 1;
+    const timerText = $('timerText');
+    if (timerText) timerText.textContent = formatTime(Math.max(0, remaining));
+    if (remaining <= 0) {
+      clearInterval(state.timer);
+      await submitExam();
+    }
+  }, 1000);
+}
+function formatTime(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+}
+async function submitExam() {
+  if (!state.session) return;
+  await flushCurrent();
+  const result = await api(`/sessions/${state.session.id}/submit`, {method: 'POST'});
+  localStorage.removeItem('xingce.activeSessionId');
+  clearInterval(state.timer);
+  showResultData(result);
+  await refreshAll();
+}
+async function showResult(id) {
+  const result = await api(`/sessions/${id}/result`);
+  showResultData(result);
+}
+function showResultData(result) {
+  $('examSetup').style.display = '';
+  $('examRunner').style.display = '';
+  $('examRunner').innerHTML = `<div class="panel">
+    <h2>交卷结果</h2>
+    <div class="metric">
+      <div><span>总分</span><b>${result.score || 0}</b></div>
+      <div><span>正确 / 错误 / 未答</span><b>${result.correctCount || 0} / ${result.wrongCount || 0} / ${result.unansweredCount || 0}</b></div>
+      <div><span>正确率</span><b>${Math.round((result.accuracy || 0) * 100)}%</b></div>
+      <div><span>总用时</span><b>${formatTime(result.totalTimeSeconds || 0)}</b></div>
+    </div>
+    <h3>模块统计</h3>
+    <table><thead><tr><th>模块</th><th>正确</th><th>正确率</th><th>得分</th><th>用时</th></tr></thead><tbody>${(result.moduleStats || []).map(m => `<tr><td>${esc(m.module)}</td><td>${m.correct}/${m.total}</td><td>${Math.round((m.accuracy || 0) * 100)}%</td><td>${m.score}</td><td>${formatTime(m.timeSeconds || 0)}</td></tr>`).join('')}</tbody></table>
+    <h3>错题列表</h3>
+    <table><thead><tr><th>题号</th><th>模块</th><th>题干</th><th>你的答案</th><th>正确答案</th><th>用时</th></tr></thead><tbody>${(result.wrongQuestions || []).map(q => `<tr><td>${q.questionOrder}</td><td>${esc(q.module)}</td><td>${esc((q.stem || '').slice(0, 180))}</td><td>${esc(q.userAnswer || '未答')}</td><td>${esc(q.correctAnswer || '')}</td><td>${q.timeSpentSeconds || 0}s</td></tr>`).join('')}</tbody></table>
+  </div>`;
+}
+
+async function loadHistory() {
+  const rows = await api('/history');
+  $('historyList').innerHTML = rows.length ? `<table><thead><tr><th>ID</th><th>标题</th><th>分数</th><th>正确率</th><th>状态</th><th>操作</th></tr></thead><tbody>${
+    rows.map(row => `<tr><td>${row.id}</td><td>${esc(row.title)}</td><td>${row.score || 0}</td><td>${Math.round((row.accuracy || 0) * 100)}%</td><td>${esc(row.status)}</td><td>${row.status === 'submitted' ? `<button onclick="showResult(${row.id});document.querySelector('[data-tab=exam]').click()">结果</button>` : `<button onclick="loadSession(${row.id});document.querySelector('[data-tab=exam]').click()">继续</button>`}</td></tr>`).join('')
+  }</tbody></table>` : '<p class="muted">暂无考试记录。</p>';
+}
+async function loadPrediction() {
+  const data = await api('/prediction');
+  if (!data.examCount) {
+    $('prediction').innerHTML = '<p class="muted">暂无历史成绩。</p>';
+    drawChart([]);
+    return;
+  }
+  $('prediction').innerHTML = `<div class="metric">
+    <div><span>预测分</span><b>${data.stablePrediction ? data.predictedScore : '不足 3 次'}</b></div>
+    <div><span>预测区间</span><b>${data.stablePrediction ? `${data.predictedLow} - ${data.predictedHigh}` : '-'}</b></div>
+    <div><span>趋势</span><b>${esc(data.trend || '-')}</b></div>
+    <div><span>最高 / 最低</span><b>${data.highestScore || 0} / ${data.lowestScore || 0}</b></div>
+  </div>
+  <p>最近 3 次平均：${data.recent3Average || 0}；最近 5 次平均：${data.recent5Average || 0}；最近 10 次平均：${data.recent10Average || 0}。</p>
+  <p>最拖分模块：${esc(data.weakestModule || '-')}；用时最高模块：${esc(data.slowestModule || '-')}。</p>
+  <h3>模块稳定性</h3>
+  <table><thead><tr><th>模块</th><th>正确率</th><th>平均用时</th></tr></thead><tbody>${(data.moduleAverages || []).map(m => `<tr><td>${esc(m.module)}</td><td>${Math.round((m.accuracy || 0) * 100)}%</td><td>${Math.round(m.avgTimeSeconds || 0)}s</td></tr>`).join('')}</tbody></table>`;
+  drawChart((data.history || []).slice().reverse());
+}
+function drawChart(rows) {
+  const canvas = $('scoreChart');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#d9e0ea';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 5; i++) {
+    const y = 20 + i * 50;
+    ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(canvas.width - 20, y); ctx.stroke();
+  }
+  if (!rows.length) return;
+  const max = Math.max(120, ...rows.map(r => Number(r.score || 0)));
+  const points = rows.map((r, i) => ({
+    x: 50 + i * ((canvas.width - 90) / Math.max(1, rows.length - 1)),
+    y: canvas.height - 30 - (Number(r.score || 0) / max) * (canvas.height - 60),
+    score: r.score || 0
+  }));
+  ctx.strokeStyle = '#2563eb';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y));
+  ctx.stroke();
+  ctx.fillStyle = '#2563eb';
+  points.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill(); ctx.fillText(p.score, p.x + 6, p.y - 6); });
+}
+
+async function refreshAll() {
+  await loadSummary();
+  await loadFilters();
+  await loadPapers();
+  await loadQuestions();
+  await loadHistory();
+  await loadPrediction();
+}
+window.addEventListener('beforeunload', () => {
+  if (!state.session || !state.questions.length || state.session.status !== 'ongoing') return;
+  const question = state.questions[state.index];
+  const selected = document.querySelector('input[name="answer"]:checked');
+  const delta = Math.max(0, Math.round((Date.now() - (state.enteredAt || Date.now())) / 1000));
+  const blob = new Blob([JSON.stringify({userAnswer: selected?.value || question.userAnswer || null, markedForReview: $('markedForReview')?.checked, timeDeltaSeconds: delta})], {type: 'application/json'});
+  navigator.sendBeacon(`${apiBase}/sessions/${state.session.id}/records/${question.recordId}`, blob);
+});
+async function init() {
+  await refreshAll();
+  await loadJobs();
+  const activeSessionId = localStorage.getItem('xingce.activeSessionId');
+  if (activeSessionId) {
+    try { await loadSession(activeSessionId); } catch (e) { localStorage.removeItem('xingce.activeSessionId'); }
+  }
+}
+init().catch(error => alert(error.message));
+</script>
+</body>
+</html>

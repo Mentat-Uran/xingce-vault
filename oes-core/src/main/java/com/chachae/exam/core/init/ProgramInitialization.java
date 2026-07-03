@@ -6,6 +6,7 @@ import cn.hutool.log.Log;
 import com.chachae.exam.common.constant.SysConsts;
 import com.chachae.exam.common.model.Paper;
 import com.chachae.exam.service.PaperService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -22,6 +23,7 @@ import java.util.List;
  * @since 2020/2/7 15:41
  */
 @Component
+@ConditionalOnProperty(name = "oes.legacy.enabled", havingValue = "true")
 public class ProgramInitialization implements ApplicationRunner {
 
   /** 获取日志系统 */

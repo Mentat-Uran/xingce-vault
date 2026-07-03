@@ -1,115 +1,148 @@
-# 基于 spring-boot 2.X 的在线考试系统
+# xingce-vault 本地公考题库与模拟考试系统
 
-## 一、概述
+## 底座选择
 
-本项目为个人项目，该在线考试系统的用户类型有三种：教师、学生、管理员。 系统实现了试题导入、试卷导入、随机合成试卷、试卷发布、考试、自动化评分、批量复查试卷等功能，实现了自定义权限检测机制、开放接口统一管理、分布式 session、接口限流策略、缓存、页面异步刷新机制、非对称文本加密传输。功能繁多，代码中注释十分详细，采用模块化开发，区分了各类资源，适合同样在做该课题的毕业生参考。
+本项目选择 `illbnm/OES` 作为底座。
 
+原因：
 
+- OES 已有在线考试、试题导入、试卷导入、随机组卷、考试计时、自动交卷、自动批改和成绩分析，和本项目目标最接近。
+- 技术栈是 Spring Boot + MyBatis-Plus + Beetl + AdminLTE，适合在现有考试系统上改造。
+- 第一轮改造保留 OES 工程结构，新增 `/vault` 本地公考功能线；旧教师、学生、管理员语义暂不作为主入口。
 
-## 二、技术栈
+## 当前实现
 
-- 前端：Bootstrap、AdminLTE 3、JQuery
-- 后端：SpringBoot、MyBatis-Plus
-- 模板引擎：Beetl
-- 数据库：MySQL
-- 缓存中间件：Redis
-- 工具类库：Guava、HuTool、Apache-Common
+访问入口：
 
+```bash
+http://localhost:8080/vault
+```
 
+已实现第一轮可用闭环：
 
-## 三、模块
+- 本地 H2 文件数据库，默认数据文件在 `data/xingce-vault*`。
+- 文本型 PDF 上传入口，使用 PDFBox 提取文本。
+- PDF 题号、选项、答案、解析的基础规则切分。
+- JSON / Markdown 题目导入入口。
+- ImportJob / ImportCandidate 候选题表，所有解析结果先进入人工校对。
+- 候选题编辑、确认入库。
+- Paper / Passage / Question / ExamSession / AnswerRecord 数据表。
+- 题库列表、筛选、搜索、详情、编辑、删除。
+- 原卷 / 智能组卷 / 练习组卷入口。
+- 默认 120 分钟倒计时。
+- 答题进度保存、每题累计用时、待回看标记。
+- 手动交卷和超时自动交卷。
+- 自动批改、总分、正确率、模块得分、模块用时、每题用时、错题列表。
+- 历史成绩和规则版分数预测。
 
-### oes-common
+没有实现，也不会在第一阶段实现：
 
-系统通用模块：定义了系统的常用资源，包括 JavaBean、工具类、常量池、系统配置、持久层接口、缓存操作接口、统一异常处理等开放资源。
+- 商业题库内置。
+- 联网抓题或爬虫。
+- 社区、排行榜、账号体系。
+- 错因复盘、学习计划、间隔复习。
+- 扫描版 OCR 自动识别。
 
-### oes-service
+## 运行
 
-系统业务模块：定义了系统的业务接口和对应实现。
+本机需要 Java 8+。当前验证环境是 Java 21。
 
-### oes-core
+如果本机没有 Maven，可以临时下载 Maven 后运行；已有 Maven 时直接用 `mvn`。
 
-系统核心模块：包含了系统的请求拦截、权限维护、定时任务、数据配置、系统配置、初始化装置、自定义注解等核心组件、对外开放页面模型和 RESTful 统一服务接口，使用  controller 和 rest 区分页面模型和 RESTful 接口，其中，对 RESTful 接口进行统一自定义权限校验，采用分布式 session 管理用户会话。
+```bash
+mvn -DskipTests package
+java -jar oes-core/target/oes-core-1.0.jar
+```
 
-### oes-util
+当前仓库验证命令：
 
-系统工具模块：包含一个系统验证码服务模块，后续可拓展其它周边业务，如：邮箱、文件管理服务等。
+```bash
+/tmp/apache-maven-3.9.9/bin/mvn -DskipTests clean compile
+/tmp/apache-maven-3.9.9/bin/mvn -DskipTests package
+java -jar oes-core/target/oes-core-1.0.jar
+```
 
+H2 控制台：
 
+```bash
+http://localhost:8080/vault/h2
+```
 
-## 四、系统主要实现功能
+JDBC URL：
 
-### 教师端
+```bash
+jdbc:h2:file:./data/xingce-vault
+```
 
-1. 个人设置：更换密码
+## 导入格式
 
-2. 课程管理：教师添加自己的任课课程信息，默认一个课程只能有一个老师
+JSON 支持单题数组，字段示例：
 
-3. 试题管理：教师可以通过添加试题丰富题库，也可以对已存在的题目进行修改和删除操作
+```json
+{
+  "paper": "2024 江苏省考 A 类行测",
+  "year": 2024,
+  "examType": "省考",
+  "province": "江苏",
+  "subject": "行测",
+  "module": "资料分析",
+  "questionType": "基期量",
+  "passage": "材料内容，可为空",
+  "question": "题干内容",
+  "options": {
+    "A": "选项A",
+    "B": "选项B",
+    "C": "选项C",
+    "D": "选项D"
+  },
+  "answer": "B",
+  "explanation": "解析内容",
+  "source": "PDF导入 / 手动录入",
+  "tags": ["时间陷阱", "单位换算"]
+}
+```
 
-   - Excel 批量导入试题
+Markdown 支持：
 
-   - 手动录入试题
+```markdown
+## 题目 1
 
-4. 试卷管理：教师可学则导入试卷或自动随机组合试卷来生成试卷
+【考试】江苏省考
+【年份】2024
+【科目】行测
+【模块】资料分析
+【题型】基期量
+【标签】时间陷阱, 单位换算
 
-   - 随机组合试卷
+【材料】
+这里是资料分析材料，可以为空。
 
-   - Excel 导入试卷
+【题干】
+这里是题干。
 
-   - 局部题型随机
+A. 选项A
+B. 选项B
+C. 选项C
+D. 选项D
 
-5. 考试管理：试卷产生后会自动出现在学生考试系统中，若需要取消考试，可以在此处设置
+【答案】B
 
-6. 试卷复查：考生的主观题答案会被保存到数据库中，教师可以对其进行复查
+【解析】
+这里是解析。
+```
 
-7. 专业管理：对学院专业进行统一管理
+## OCR 扩展
 
-   学生管理：对学生信息进行统一管理
+当前 `PdfTextExtractor` 只做文本型 PDF 提取。接入 OCR 时保持同一流程：
 
-9. 查看公告：查看管理员发布的公告信息
+```text
+PDF / OCR / 版面解析 -> 文本或结构化块 -> QuestionParser -> ImportCandidate -> 人工校对 -> Question
+```
 
+推荐扩展点：
 
-### 学生端
+- PaddleOCR：在 `PdfTextExtractor` 增加扫描页识别分支，输出文本块、坐标和置信度。
+- MinerU：新增版面解析服务，保留段落、表格、图片和资料分析材料块。
+- PDF-Extract-Kit：输出题号、选项、答案解析候选，但仍必须进入校对页，不能直接入库。
 
-1. 个人信息管理：登录密码修改
-
-2. 我的考试：学生进入后会看到试卷信息，当有需要参加的考试时，点击进入即可来到考试界面。 考试结束系统会自动提交考卷并完成自动改卷任务
-
-   
-
-4. 成绩分析：系统会统计出该生本学期参加每门考试的成绩，以及该门课程的平均成绩，使用雷达图进行对比
-
-5. 查看公告：查看管理员发布的公告信息
-
-### 管理端
-
-1. 系统公告管理：在必要时发布系统公告
-
-2. 教师管理：教师信息统一管理
-
-3. 学院管理：对学院进行统一管理
-
-4. 管理员管理：对管理员信息进行统一管理
-
-## 五、部分功能展示
-
-![](https://github.com/chachae/OES/raw/master/templates/screenshot/login.png)
-
-![](https://github.com/chachae/OES/raw/master/templates/screenshot/academy-manager.png)
-
-![](https://github.com/chachae/OES/raw/master/templates/screenshot/admin-manager.png)
-
-![](https://github.com/chachae/OES/raw/master/templates/screenshot/announce-edit.png)
-
-![](https://github.com/chachae/OES/raw/master/templates/screenshot/examing.png)
-
-![](https://github.com/chachae/OES/raw/master/templates/screenshot/review-manager.png)
-
-![](https://github.com/chachae/OES/raw/master/templates/screenshot/update-password.png)
-
-![](https://github.com/chachae/OES/raw/master/templates/screenshot/exam-manager.png)
-
-![](https://github.com/chachae/OES/raw/master/templates/screenshot/exam-manager2.png)
-
-![](https://github.com/chachae/OES/raw/master/templates/screenshot/question-manager.png)
+无法确定的字段必须保留为空或 `unknown`，不要编造答案、解析或题型。

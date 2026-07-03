@@ -41,6 +41,8 @@
         <webjars-bootstrap-table.version>1.16.0</webjars-bootstrap-table.version>
         <poi-ooxml.version>4.1.2</poi-ooxml.version>
         <beetl.version>3.0.19.RELEASE</beetl.version>
+        <pdfbox.version>2.0.30</pdfbox.version>
+        <lombok.version>1.18.34</lombok.version>
     </properties>
 
     <!-- 依赖版本管理 -->
@@ -120,6 +122,13 @@
                 <groupId>org.apache.poi</groupId>
                 <artifactId>poi-ooxml</artifactId>
                 <version>${poi-ooxml.version}</version>
+            </dependency>
+
+            <!-- PDF text extraction for local gongkao paper imports -->
+            <dependency>
+                <groupId>org.apache.pdfbox</groupId>
+                <artifactId>pdfbox</artifactId>
+                <version>${pdfbox.version}</version>
             </dependency>
 
             <!-- commons-text -->

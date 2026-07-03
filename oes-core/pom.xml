@@ -44,6 +44,18 @@
             <artifactId>beetl</artifactId>
         </dependency>
 
+        <!-- Local file database for xingce-vault. -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+        </dependency>
+
+        <!-- Text-based PDF import. OCR is intentionally left as an extension. -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+        </dependency>
+
         <!-- lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>

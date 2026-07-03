@@ -4,6 +4,7 @@ import cn.hutool.log.Log;
 import com.chachae.exam.common.constant.SysConsts;
 import com.chachae.exam.common.model.Paper;
 import com.chachae.exam.common.dao.PaperDAO;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import java.util.List;
  * @date 2020/2/3
  */
 @Component
+@ConditionalOnProperty(name = "oes.legacy.enabled", havingValue = "true")
 public class PaperStateChangeJob {
 
   @Resource private PaperDAO paperDAO;

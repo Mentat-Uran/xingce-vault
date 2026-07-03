@@ -1,0 +1,52 @@
+# Local-first profile for xingce-vault.
+server:
+  port: 8080
+  max-http-header-size: 5MB
+
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:file:./data/xingce-vault;MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE
+    username: sa
+    password:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 1
+  h2:
+    console:
+      enabled: true
+      path: /vault/h2
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  resources:
+    static-locations: classpath:/static/
+  mvc:
+    static-path-pattern: /static/**
+  session:
+    store-type: none
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+mybatis-plus:
+  global-config:
+    banner: off
+  type-aliases-package: com.chachae.exam.common.model
+  configuration:
+    map-underscore-to-camel-case: on
+
+pagehelper:
+  reasonable: false
+  support-methods-arguments: true
+  params: count=countSql
+  row-bounds-with-count: true
+  helper-dialect: h2
+
+oes:
+  legacy:
+    enabled: false
+
+vault:
+  default-duration-seconds: 7200
