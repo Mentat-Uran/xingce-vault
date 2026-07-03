@@ -1,5 +1,23 @@
+# Build output
 target/
+
+# Local database and runtime data
 data/
+*.db
+*.mv.db
+*.trace.db
+*.lock.db
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Maven wrapper and release leftovers
+.mvn/timing.properties
 
 ### IntelliJ IDEA ###
 .idea
