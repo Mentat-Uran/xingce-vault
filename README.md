@@ -21,8 +21,9 @@ http://localhost:8080/vault
 已实现第一轮可用闭环：
 
 - 本地 H2 文件数据库，默认数据文件在 `data/xingce-vault*`。
-- 文本型 PDF 上传入口，使用 PDFBox 提取文本。
-- PDF 题号、选项、答案、解析的基础规则切分。
+- 文本型 PDF 上传入口，使用 PDFBox 提取正文文本。
+- 使用 Tabula Java 抽取文本型 PDF 表格，优先服务资料分析材料校对。
+- PDF 题号、选项、独立答案解析区、资料分析材料的规则切分与回填。
 - JSON / Markdown 题目导入入口。
 - ImportJob / ImportCandidate 候选题表，所有解析结果先进入人工校对。
 - 候选题编辑、确认入库。
@@ -133,7 +134,7 @@ D. 选项D
 
 ## OCR 扩展
 
-当前 `PdfTextExtractor` 只做文本型 PDF 提取。接入 OCR 时保持同一流程：
+当前 `PdfTextExtractor` 只做文本型 PDF 提取：PDFBox 负责正文文本，Tabula Java 负责可抽取表格；扫描版 OCR 仍保留为扩展点。接入 OCR 时保持同一流程：
 
 ```text
 PDF / OCR / 版面解析 -> 文本或结构化块 -> QuestionParser -> ImportCandidate -> 人工校对 -> Question
@@ -141,6 +142,7 @@ PDF / OCR / 版面解析 -> 文本或结构化块 -> QuestionParser -> ImportCan
 
 推荐扩展点：
 
+- Tabula Java：已接入，用于文本型 PDF 表格抽取，不处理扫描图片表格。
 - PaddleOCR：在 `PdfTextExtractor` 增加扫描页识别分支，输出文本块、坐标和置信度。
 - MinerU：新增版面解析服务，保留段落、表格、图片和资料分析材料块。
 - PDF-Extract-Kit：输出题号、选项、答案解析候选，但仍必须进入校对页，不能直接入库。

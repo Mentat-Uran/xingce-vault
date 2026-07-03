@@ -56,6 +56,18 @@
             <artifactId>pdfbox</artifactId>
         </dependency>
 
+        <!-- Tabula Java extracts tables from text-based PDFs for data-analysis passages. -->
+        <dependency>
+            <groupId>technology.tabula</groupId>
+            <artifactId>tabula</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-simple</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>

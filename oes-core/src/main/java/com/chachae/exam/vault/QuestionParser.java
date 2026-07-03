@@ -18,6 +18,19 @@ public class QuestionParser {
 
   private static final Pattern QUESTION_START =
       Pattern.compile("(?m)^\\s*(?:第\\s*(\\d+)\\s*题|(\\d+)\\s*[.、．])\\s*");
+  private static final Pattern ANSWER_SECTION_HEADER =
+      Pattern.compile(
+          "(?m)^\\s*(?:【\\s*)?(?:参考答案(?:及解析)?|答案(?:及解析)?|答案解析|参考解析|试题答案)(?:\\s*】)?\\s*$");
+  private static final Pattern ANSWER_BLOCK =
+      Pattern.compile(
+          "(?ms)(?:^|\\n)\\s*(?:第\\s*)?(\\d{1,3})\\s*(?:题)?[.、．)]\\s*(.*?)"
+              + "(?=(?:\\n\\s*(?:第\\s*)?\\d{1,3}\\s*(?:题)?[.、．)]\\s*)|\\z)");
+  private static final Pattern INLINE_ANSWER_ITEM =
+      Pattern.compile(
+          "(?s)(\\d{1,3})\\s*[.、．)]\\s*"
+              + "(?:【\\s*答案\\s*】|答案\\s*[:：]|正确答案\\s*)?\\s*([A-Da-d])\\b\\s*(.*?)"
+              + "(?=\\s+\\d{1,3}\\s*[.、．)]\\s*"
+              + "(?:【\\s*答案\\s*】|答案\\s*[:：]|正确答案\\s*)?\\s*[A-Da-d]\\b|$)");
   private static final Pattern ANSWER_PATTERN =
       Pattern.compile("(?:【\\s*答案\\s*】|答案\\s*[:：]|正确答案\\s*)\\s*([A-Da-d])");
   private static final Pattern EXPLANATION_PATTERN =
@@ -27,6 +40,15 @@ public class QuestionParser {
           "(?s)(?:^|\\n|\\s)(?:([A-Da-d])\\s*[.、．)]|[（(]([A-Da-d])[）)])\\s*(.*?)"
               + "(?=(?:\\n|\\s)(?:[A-Da-d]\\s*[.、．)]|[（(][A-Da-d][）)])|"
               + "(?:【\\s*答案\\s*】|答案\\s*[:：]|正确答案\\s*|【\\s*解析\\s*】|解析\\s*[:：])|$)");
+  private static final Pattern PASSAGE_RANGE =
+      Pattern.compile(
+          "(?:回答|作答|完成|根据).*?(?:第\\s*)?(\\d{1,3})\\s*(?:[-—~至到]\\s*(\\d{1,3}))?\\s*题");
+  private static final Pattern LEADING_ANSWER =
+      Pattern.compile(
+          "^\\s*(?:【\\s*答案\\s*】|答案\\s*[:：]|正确答案\\s*)?\\s*([A-Da-d])\\b[.、．，,：:]?\\s*");
+  private static final String TABLE_HEADER = "【PDF表格抽取】";
+  private static final String[] MODULE_NAMES =
+      new String[] {"常识判断", "言语理解", "数量关系", "判断推理", "资料分析", "申论"};
 
   private final ObjectMapper objectMapper;
 
@@ -35,22 +57,57 @@ public class QuestionParser {
   }
 
   public List<Map<String, Object>> parsePdfText(String text, String sourceName) {
-    String normalized = normalizeText(text);
-    List<int[]> ranges = questionRanges(normalized);
+    PdfParts parts = splitPdfParts(normalizeText(text));
+    Map<Integer, AnswerInfo> answerByNumber = parseAnswerSection(parts.answerText);
+    List<QuestionRange> ranges = questionRanges(parts.questionText);
     List<Map<String, Object>> candidates = new ArrayList<>();
 
     if (ranges.isEmpty()) {
       Map<String, Object> candidate = baseCandidate(sourceName);
-      candidate.put("stem", trimToNull(normalized));
+      candidate.put("stem", trimToNull(parts.questionText));
+      if (parts.tableText != null) {
+        candidate.put("passageText", TABLE_HEADER + "\n" + parts.tableText);
+      }
       candidates.add(candidate);
       return candidates;
     }
 
-    for (int[] range : ranges) {
-      String block = normalized.substring(range[0], range[1]).trim();
-      if (!block.isEmpty()) {
-        candidates.add(parseBlock(block, sourceName));
+    String currentModule = null;
+    String currentPassage = null;
+    int passageRemaining = 0;
+    int contextStart = 0;
+
+    for (QuestionRange range : ranges) {
+      String context = parts.questionText.substring(contextStart, range.start);
+      String module = moduleFromText(context);
+      if (module != null) {
+        currentModule = module;
       }
+
+      String passage = passageFromContext(context);
+      if (passage != null) {
+        currentPassage = enrichPassage(passage, parts.tableText);
+        passageRemaining = inferPassageSpan(context, range.number);
+      }
+
+      String block = parts.questionText.substring(range.start, range.end).trim();
+      if (!block.isEmpty()) {
+        Map<String, Object> candidate = parseBlock(block, sourceName);
+        if (currentModule != null) {
+          candidate.put("module", currentModule);
+        }
+        if (candidate.get("passageText") == null && currentPassage != null && passageRemaining > 0) {
+          candidate.put("passageText", currentPassage);
+          passageRemaining--;
+        } else if (candidate.get("passageText") == null
+            && parts.tableText != null
+            && "资料分析".equals(candidate.get("module"))) {
+          candidate.put("passageText", TABLE_HEADER + "\n" + parts.tableText);
+        }
+        mergeAnswer(candidate, answerByNumber.get(candidate.get("number")));
+        candidates.add(candidate);
+      }
+      contextStart = range.end;
     }
     return candidates;
   }
@@ -113,7 +170,7 @@ public class QuestionParser {
       contentStart = startMatcher.end();
     }
 
-    String content = block.substring(contentStart).trim();
+    String content = normalizeInlineOptionMarkers(block.substring(contentStart).trim());
     Matcher answerMatcher = ANSWER_PATTERN.matcher(content);
     if (answerMatcher.find()) {
       candidate.put("answer", normalizeAnswer(answerMatcher.group(1)));
@@ -144,17 +201,111 @@ public class QuestionParser {
     return candidate;
   }
 
-  private List<int[]> questionRanges(String text) {
-    List<Integer> starts = new ArrayList<>();
+  private PdfParts splitPdfParts(String text) {
+    String remaining = text == null ? "" : text;
+    String tableText = null;
+    int tableIndex = remaining.indexOf(TABLE_HEADER);
+    if (tableIndex >= 0) {
+      tableText = trimToNull(remaining.substring(tableIndex + TABLE_HEADER.length()));
+      remaining = remaining.substring(0, tableIndex);
+    }
+
+    String answerText = null;
+    Matcher headerMatcher = ANSWER_SECTION_HEADER.matcher(remaining);
+    if (headerMatcher.find()) {
+      answerText = trimToNull(remaining.substring(headerMatcher.end()));
+      remaining = remaining.substring(0, headerMatcher.start());
+    }
+    return new PdfParts(trimToNull(remaining) == null ? "" : remaining.trim(), answerText, tableText);
+  }
+
+  private Map<Integer, AnswerInfo> parseAnswerSection(String answerText) {
+    Map<Integer, AnswerInfo> answers = new LinkedHashMap<>();
+    if (answerText == null) {
+      return answers;
+    }
+
+    Matcher blockMatcher = ANSWER_BLOCK.matcher(answerText);
+    while (blockMatcher.find()) {
+      Integer number = parseInteger(blockMatcher.group(1));
+      AnswerInfo info = parseAnswerInfo(blockMatcher.group(2));
+      if (number != null && info.hasValue()) {
+        answers.put(number, info);
+      }
+    }
+
+    if (!answers.isEmpty()) {
+      return answers;
+    }
+
+    Matcher inlineMatcher = INLINE_ANSWER_ITEM.matcher(answerText);
+    while (inlineMatcher.find()) {
+      Integer number = parseInteger(inlineMatcher.group(1));
+      String body = inlineMatcher.group(2) + " " + inlineMatcher.group(3);
+      AnswerInfo info = parseAnswerInfo(body);
+      if (number != null && info.hasValue()) {
+        answers.put(number, info);
+      }
+    }
+    return answers;
+  }
+
+  private AnswerInfo parseAnswerInfo(String block) {
+    String answer = null;
+    String explanation = null;
+    String content = block == null ? "" : block.trim();
+
+    Matcher answerMatcher = ANSWER_PATTERN.matcher(content);
+    if (answerMatcher.find()) {
+      answer = normalizeAnswer(answerMatcher.group(1));
+    } else {
+      Matcher leadingMatcher = LEADING_ANSWER.matcher(content);
+      if (leadingMatcher.find()) {
+        answer = normalizeAnswer(leadingMatcher.group(1));
+      }
+    }
+
+    Matcher explanationMatcher = EXPLANATION_PATTERN.matcher(content);
+    if (explanationMatcher.find()) {
+      explanation = trimToNull(explanationMatcher.group(1));
+    } else {
+      String remainder = LEADING_ANSWER.matcher(content).replaceFirst("");
+      remainder =
+          remainder.replaceFirst(
+              "^\\s*(?:【\\s*解析\\s*】|解析\\s*[:：])\\s*", "");
+      explanation = trimToNull(remainder);
+      if (answer != null && answer.equals(explanation)) {
+        explanation = null;
+      }
+    }
+    return new AnswerInfo(answer, explanation);
+  }
+
+  private void mergeAnswer(Map<String, Object> candidate, AnswerInfo answerInfo) {
+    if (answerInfo == null) {
+      return;
+    }
+    if (candidate.get("answer") == null && answerInfo.answer != null) {
+      candidate.put("answer", answerInfo.answer);
+    }
+    if (candidate.get("explanation") == null && answerInfo.explanation != null) {
+      candidate.put("explanation", answerInfo.explanation);
+    }
+  }
+
+  private List<QuestionRange> questionRanges(String text) {
+    List<QuestionRange> starts = new ArrayList<>();
     Matcher matcher = QUESTION_START.matcher(text);
     while (matcher.find()) {
-      starts.add(matcher.start());
+      starts.add(
+          new QuestionRange(
+              matcher.start(), text.length(), parseInteger(firstNotBlank(matcher.group(1), matcher.group(2)))));
     }
-    List<int[]> ranges = new ArrayList<>();
+    List<QuestionRange> ranges = new ArrayList<>();
     for (int i = 0; i < starts.size(); i++) {
-      int start = starts.get(i);
-      int end = i + 1 < starts.size() ? starts.get(i + 1) : text.length();
-      ranges.add(new int[] {start, end});
+      QuestionRange current = starts.get(i);
+      int end = i + 1 < starts.size() ? starts.get(i + 1).start : text.length();
+      ranges.add(new QuestionRange(current.start, end, current.number));
     }
     return ranges;
   }
@@ -205,7 +356,20 @@ public class QuestionParser {
     if (text == null) {
       return "";
     }
-    return text.replace('\u00A0', ' ').replace("\r\n", "\n").replace('\r', '\n');
+    return text
+        .replace('\u00A0', ' ')
+        .replace("\r\n", "\n")
+        .replace('\r', '\n')
+        .replaceAll("(?m)^\\s*第\\s*(\\d+)\\s*题\\s*", "第$1题 ");
+  }
+
+  private String normalizeInlineOptionMarkers(String content) {
+    if (content == null) {
+      return "";
+    }
+    return content
+        .replaceAll("\\s+([A-Da-d]\\s*[.、．)])", "\n$1")
+        .replaceAll("\\s+([（(]\\s*[A-Da-d]\\s*[）)])", "\n$1");
   }
 
   private String stripTrailingAnswerAndExplanation(String value) {
@@ -216,6 +380,70 @@ public class QuestionParser {
         value.replaceAll("(?s)(?:【\\s*答案\\s*】|答案\\s*[:：]|正确答案\\s*)[A-Da-d].*$", "");
     result = result.replaceAll("(?s)(?:【\\s*解析\\s*】|解析\\s*[:：]).*$", "");
     return trimToNull(result);
+  }
+
+  private String moduleFromText(String text) {
+    String value = trimToNull(text);
+    if (value == null) {
+      return null;
+    }
+    String compact = value.replaceAll("\\s+", "");
+    for (String module : MODULE_NAMES) {
+      if (compact.contains(module)) {
+        return module;
+      }
+    }
+    return null;
+  }
+
+  private String passageFromContext(String context) {
+    String value = trimToNull(context);
+    if (value == null) {
+      return null;
+    }
+    String cleaned =
+        value
+            .replaceAll("(?m)^\\s*第[一二三四五六七八九十]+部分.*$", "")
+            .replaceAll("(?m)^\\s*(?:常识判断|言语理解|数量关系|判断推理|资料分析|申论)\\s*$", "")
+            .trim();
+    if (!isPassageLike(cleaned)) {
+      return null;
+    }
+    return trimToNull(cleaned);
+  }
+
+  private boolean isPassageLike(String text) {
+    String value = trimToNull(text);
+    if (value == null) {
+      return false;
+    }
+    if (value.length() >= 80) {
+      return true;
+    }
+    return value.matches("(?s).*(?:资料|材料|根据|以下|回答|表\\d*|图\\d*|统计|同比|环比).*");
+  }
+
+  private String enrichPassage(String passage, String tableText) {
+    if (tableText == null) {
+      return passage;
+    }
+    return passage + "\n\n" + TABLE_HEADER + "\n" + tableText;
+  }
+
+  private int inferPassageSpan(String context, Integer firstQuestionNumber) {
+    Matcher matcher = PASSAGE_RANGE.matcher(context == null ? "" : context);
+    int span = 5;
+    while (matcher.find()) {
+      Integer start = parseInteger(matcher.group(1));
+      Integer end = parseInteger(matcher.group(2));
+      if (firstQuestionNumber != null && start != null && !firstQuestionNumber.equals(start)) {
+        continue;
+      }
+      if (start != null && end != null && end >= start) {
+        span = Math.min(Math.max(end - start + 1, 1), 10);
+      }
+    }
+    return span;
   }
 
   private Map<String, String> parseMarkdownOptions(String block) {
@@ -342,6 +570,44 @@ public class QuestionParser {
       return objectMapper.readValue(value, new TypeReference<Map<String, Object>>() {});
     } catch (IOException e) {
       return new LinkedHashMap<>();
+    }
+  }
+
+  private static final class PdfParts {
+    private final String questionText;
+    private final String answerText;
+    private final String tableText;
+
+    private PdfParts(String questionText, String answerText, String tableText) {
+      this.questionText = questionText;
+      this.answerText = answerText;
+      this.tableText = tableText;
+    }
+  }
+
+  private static final class QuestionRange {
+    private final int start;
+    private final int end;
+    private final Integer number;
+
+    private QuestionRange(int start, int end, Integer number) {
+      this.start = start;
+      this.end = end;
+      this.number = number;
+    }
+  }
+
+  private static final class AnswerInfo {
+    private final String answer;
+    private final String explanation;
+
+    private AnswerInfo(String answer, String explanation) {
+      this.answer = answer;
+      this.explanation = explanation;
+    }
+
+    private boolean hasValue() {
+      return answer != null || explanation != null;
     }
   }
 }

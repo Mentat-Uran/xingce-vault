@@ -42,7 +42,9 @@
         <poi-ooxml.version>4.1.2</poi-ooxml.version>
         <beetl.version>3.0.19.RELEASE</beetl.version>
         <pdfbox.version>2.0.30</pdfbox.version>
+        <tabula.version>1.0.5</tabula.version>
         <lombok.version>1.18.34</lombok.version>
+        <skipTests>true</skipTests>
     </properties>
 
     <!-- 依赖版本管理 -->
@@ -131,6 +133,13 @@
                 <version>${pdfbox.version}</version>
             </dependency>
 
+            <!-- Table extraction engine used by Tabula for text-based PDF tables. -->
+            <dependency>
+                <groupId>technology.tabula</groupId>
+                <artifactId>tabula</artifactId>
+                <version>${tabula.version}</version>
+            </dependency>
+
             <!-- commons-text -->
             <dependency>
                 <groupId>org.apache.commons</groupId>
@@ -210,7 +219,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <!-- 默认关掉单元测试  -->
-                    <skipTests>true</skipTests>
+                    <skipTests>${skipTests}</skipTests>
                 </configuration>
             </plugin>
         </plugins>

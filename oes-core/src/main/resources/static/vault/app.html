@@ -363,10 +363,11 @@
   <section id="tab-docs">
     <div class="panel">
       <h2>后续 OCR / 复杂 PDF 接入</h2>
-      <p>第一版只处理文本型 PDF，扫描版和复杂版式不直接入库。扩展时建议保持当前流程：PDF / OCR 提取文本或结构化块，生成 ImportCandidate，人工校对后再确认入库。</p>
+      <p>当前只处理文本型 PDF：正文文本由 PDFBox 提取，表格由 Tabula Java 辅助抽取，扫描版和复杂版式不直接入库。扩展时建议保持当前流程：PDF / OCR 提取文本或结构化块，生成 ImportCandidate，人工校对后再确认入库。</p>
       <table>
         <thead><tr><th>组件</th><th>接入位置</th><th>输出要求</th></tr></thead>
         <tbody>
+        <tr><td>Tabula Java</td><td><code>PdfTextExtractor</code> 已接入</td><td>抽取文本型 PDF 表格，作为资料分析材料候选</td></tr>
         <tr><td>PaddleOCR</td><td><code>PdfTextExtractor</code> 增加 OCR 分支</td><td>按页输出文本块、坐标、置信度，低置信字段留空</td></tr>
         <tr><td>MinerU</td><td>新增版面解析服务，替换纯文本提取</td><td>保留段落、表格、图片引用，资料分析材料单独标注</td></tr>
         <tr><td>PDF-Extract-Kit</td><td>新增结构化 PDF parser</td><td>输出题号、选项、答案解析候选，但仍进入校对页</td></tr>
