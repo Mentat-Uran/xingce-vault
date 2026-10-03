@@ -44,7 +44,7 @@
         <pdfbox.version>2.0.30</pdfbox.version>
         <tabula.version>1.0.5</tabula.version>
         <lombok.version>1.18.34</lombok.version>
-        <skipTests>true</skipTests>
+        <skipTests>false</skipTests>
     </properties>
 
     <!-- 依赖版本管理 -->
@@ -218,7 +218,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <!-- 默认关掉单元测试  -->
+                    <!-- 单元测试默认运行；需要时可用 -DskipTests 跳过。 -->
                     <skipTests>${skipTests}</skipTests>
                 </configuration>
             </plugin>
