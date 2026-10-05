@@ -51,15 +51,15 @@ http://localhost:8080/vault
 如果本机没有 Maven，可以临时下载 Maven 后运行；已有 Maven 时直接用 `mvn`。
 
 ```bash
-mvn -DskipTests package
+mvn package
 java -jar oes-core/target/oes-core-1.0.jar
 ```
 
 当前仓库验证命令：
 
 ```bash
-/tmp/apache-maven-3.9.9/bin/mvn -DskipTests clean compile
-/tmp/apache-maven-3.9.9/bin/mvn -DskipTests package
+mvn clean test
+mvn package
 java -jar oes-core/target/oes-core-1.0.jar
 ```
 
